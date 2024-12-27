@@ -9,6 +9,7 @@ import { OllamaHandler } from "./providers/ollama"
 import { LmStudioHandler } from "./providers/lmstudio"
 import { GeminiHandler } from "./providers/gemini"
 import { OpenAiNativeHandler } from "./providers/openai-native"
+import { VsCodeLmHandler } from "./providers/vscode-lm";
 import { ApiStream } from "./transform/stream"
 import { DelayDecorator } from "./providers/delay-decorator"
 
@@ -46,8 +47,14 @@ export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
 			handler = new GeminiHandler(options)
 			break
 		case "openai-native":
+<<<<<<< HEAD
 			handler = new OpenAiNativeHandler(options)
 			break
+=======
+			return new OpenAiNativeHandler(options)
+        case "vscode-lm":
+            return new VsCodeLmHandler(options)
+>>>>>>> julesmons/feature/language-model-api
 		default:
 			handler = new AnthropicHandler(options)
 	}

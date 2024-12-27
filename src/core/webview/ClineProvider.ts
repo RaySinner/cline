@@ -60,7 +60,11 @@ type GlobalStateKey =
 	| "openRouterModelId"
 	| "openRouterModelInfo"
 	| "autoApprovalSettings"
+<<<<<<< HEAD
     | "requestDelay"
+=======
+    | "vsCodeLmModelSelector"
+>>>>>>> julesmons/feature/language-model-api
 
 export const GlobalFileNames = {
 	apiConversationHistory: "api_conversation_history.json",
@@ -385,6 +389,38 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 						} = message.apiConfiguration!
 
 						if (message.apiConfiguration) {
+<<<<<<< HEAD
+=======
+							const {
+								apiProvider,
+								apiModelId,
+								apiKey,
+								openRouterApiKey,
+								awsAccessKey,
+								awsSecretKey,
+								awsSessionToken,
+								awsRegion,
+								awsUseCrossRegionInference,
+								vertexProjectId,
+								vertexRegion,
+								openAiBaseUrl,
+								openAiApiKey,
+								openAiModelId,
+								ollamaModelId,
+								ollamaBaseUrl,
+								lmStudioModelId,
+								lmStudioBaseUrl,
+								anthropicBaseUrl,
+								geminiApiKey,
+								openAiNativeApiKey,
+								azureApiVersion,
+								openRouterModelId,
+								openRouterModelInfo,
+                                vsCodeLmModelSelector
+							} = message.apiConfiguration
+							await this.updateGlobalState("apiProvider", apiProvider)
+							await this.updateGlobalState("apiModelId", apiModelId)
+>>>>>>> julesmons/feature/language-model-api
 							await this.storeSecret("apiKey", apiKey)
 							await this.storeSecret("openRouterApiKey", openRouterApiKey)
 							await this.storeSecret("awsAccessKey", awsAccessKey)
@@ -409,7 +445,11 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 							await this.updateGlobalState("azureApiVersion", azureApiVersion)
 							await this.updateGlobalState("openRouterModelId", openRouterModelId)
 							await this.updateGlobalState("openRouterModelInfo", openRouterModelInfo)
+<<<<<<< HEAD
                             await this.updateGlobalState("requestDelay", requestDelay)
+=======
+                            await this.updateGlobalState("vsCodeLmModelSelector", vsCodeLmModelSelector)
+>>>>>>> julesmons/feature/language-model-api
 							if (this.cline) {
 								this.cline.api = buildApiHandler(message.apiConfiguration)
 							}
@@ -471,6 +511,10 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 						const lmStudioModels = await this.getLmStudioModels(message.text)
 						this.postMessageToWebview({ type: "lmStudioModels", lmStudioModels })
 						break
+                    case "requestVsCodeLmSelectors":
+                        const vsCodeLmSelectors = await this.getVsCodeLmSelectors()
+                        this.postMessageToWebview({ type: "vsCodeLmSelectors", vsCodeLmSelectors })
+                        break
 					case "refreshOpenRouterModels":
 						await this.refreshOpenRouterModels()
 						break
@@ -595,6 +639,13 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			return []
 		}
 	}
+
+    // VSCode Language Model API
+
+    async getVsCodeLmSelectors() {
+
+        return await vscode.lm.selectChatModels();
+    }
 
 	// OpenRouter
 
@@ -934,7 +985,11 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			customInstructions,
 			taskHistory,
 			autoApprovalSettings,
+<<<<<<< HEAD
             requestDelay,
+=======
+            vsCodeLmModelSelector
+>>>>>>> julesmons/feature/language-model-api
 		] = await Promise.all([
 			this.getGlobalState("apiProvider") as Promise<ApiProvider | undefined>,
 			this.getGlobalState("apiModelId") as Promise<string | undefined>,
@@ -964,7 +1019,11 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			this.getGlobalState("customInstructions") as Promise<string | undefined>,
 			this.getGlobalState("taskHistory") as Promise<HistoryItem[] | undefined>,
 			this.getGlobalState("autoApprovalSettings") as Promise<AutoApprovalSettings | undefined>,
+<<<<<<< HEAD
             this.getGlobalState("requestDelay") as Promise<number | undefined>,
+=======
+            this.getGlobalState("vsCodeLmModelSelector") as Promise<vscode.LanguageModelChatSelector | undefined>
+>>>>>>> julesmons/feature/language-model-api
 		])
 
 		let apiProvider: ApiProvider
@@ -1007,7 +1066,11 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 				azureApiVersion,
 				openRouterModelId,
 				openRouterModelInfo,
+<<<<<<< HEAD
                 requestDelay,
+=======
+                vsCodeLmModelSelector
+>>>>>>> julesmons/feature/language-model-api
 			},
 			lastShownAnnouncementId,
 			customInstructions,
