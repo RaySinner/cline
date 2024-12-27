@@ -47,14 +47,11 @@ export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
 			handler = new GeminiHandler(options)
 			break
 		case "openai-native":
-<<<<<<< HEAD
 			handler = new OpenAiNativeHandler(options)
 			break
-=======
-			return new OpenAiNativeHandler(options)
         case "vscode-lm":
-            return new VsCodeLmHandler(options)
->>>>>>> julesmons/feature/language-model-api
+            handler =  new VsCodeLmHandler(options)
+			break
 		default:
 			handler = new AnthropicHandler(options)
 	}

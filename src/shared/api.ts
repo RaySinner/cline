@@ -64,7 +64,8 @@ export interface ApiConfiguration {
 	azureApiVersion?: string
 	openRouterModelId?: string
 	openRouterModelInfo?: ModelInfo
-	requestDelay?: number
+	requestDelay?: number,
+	vsCodeLmModelSelector?: vscode.LanguageModelChatSelector
 }
 
 // Models

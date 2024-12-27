@@ -706,7 +706,15 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage }: 
                             {selectedProvider === "openai-native" && createDropdown(openAiNativeModels)}
                         </div>
 
-<<<<<<< HEAD
+                        <ModelInfoView
+                            selectedModelId={selectedModelId}
+                            modelInfo={selectedModelInfo}
+                            isDescriptionExpanded={isDescriptionExpanded}
+                            setIsDescriptionExpanded={setIsDescriptionExpanded}
+                        />
+                    </>
+                )}
+
 			{modelIdErrorMessage && (
 				<p
 					style={{
@@ -746,33 +754,12 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage }: 
 					Delay between API requests to avoid rate limits
 				</div>
 			</div>
-		</div>
-	)
-}
-=======
-                        <ModelInfoView
-                            selectedModelId={selectedModelId}
-                            modelInfo={selectedModelInfo}
-                            isDescriptionExpanded={isDescriptionExpanded}
-                            setIsDescriptionExpanded={setIsDescriptionExpanded}
-                        />
-                    </>
-                )}
 
-            {modelIdErrorMessage && (
-                <p
-                    style={{
-                        margin: "-10px 0 4px 0",
-                        fontSize: 12,
-                        color: "var(--vscode-errorForeground)",
-                    }}>
-                    {modelIdErrorMessage}
-                </p>
-            )}
-        </div>
+
+		</div>
     );
 };
->>>>>>> julesmons/feature/language-model-api
+
 
 export function getOpenRouterAuthUrl(uriScheme?: string) {
     return `https://openrouter.ai/auth?callback_url=${uriScheme || "vscode"}://saoudrizwan.claude-dev/openrouter`;
