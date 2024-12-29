@@ -206,14 +206,31 @@ export class VsCodeLmHandler implements ApiHandler {
         try {
             const models: vscode.LanguageModelChat[] = await vscode.lm.selectChatModels(selector);
 
-            if (!models || models.length === 0) {
+            if (!models || !Array.isArray(models) || models.length === 0) {
                 throw new Error(`No models found matching selector: ${JSON.stringify(selector)}`);
             }
 
-            // Validate the selected model has required properties
+            // Validate the selected model has required properties and valid values
             const selectedModel = models[0];
-            if (!selectedModel.id || !selectedModel.vendor || !selectedModel.family) {
-                throw new Error('Selected model is missing required properties (id, vendor, or family)');
+            
+            // Check all required properties
+            const requiredProps = {
+                id: selectedModel.id,
+                vendor: selectedModel.vendor,
+                family: selectedModel.family,
+                name: selectedModel.name,
+                maxInputTokens: selectedModel.maxInputTokens
+            };
+
+            for (const [prop, value] of Object.entries(requiredProps)) {
+                if (!value && value !== 0) {
+                    throw new Error(`Selected model is missing required property: ${prop}`);
+                }
+            }
+
+            // Validate maxInputTokens is a positive number
+            if (typeof selectedModel.maxInputTokens !== 'number' || selectedModel.maxInputTokens < 0) {
+                throw new Error('Selected model has invalid maxInputTokens value');
             }
 
             return selectedModel;
@@ -254,28 +271,69 @@ export class VsCodeLmHandler implements ApiHandler {
     }
 
     private async countTokens(text: string | vscode.LanguageModelChatMessage): Promise<number> {
-        if (!this.client || !this.currentRequestCancellation) {
+        // Check for required dependencies
+        if (!this.client) {
+            console.warn('Cline <Language Model API>: No client available for token counting');
+            return 0;
+        }
+
+        if (!this.currentRequestCancellation) {
+            console.warn('Cline <Language Model API>: No cancellation token available for token counting');
+            return 0;
+        }
+
+        // Validate input
+        if (!text) {
+            console.debug('Cline <Language Model API>: Empty text provided for token counting');
             return 0;
         }
 
         try {
-            if (!text) {
-                return 0;
-            }
-
-            const result = await this.client.countTokens(text, this.currentRequestCancellation.token);
+            // Handle different input types
+            let tokenCount: number;
             
-            // Validate the result is a positive number
-            if (typeof result !== 'number' || result < 0) {
-                console.warn('Invalid token count received:', result);
+            if (typeof text === 'string') {
+                tokenCount = await this.client.countTokens(text, this.currentRequestCancellation.token);
+            } else if (text instanceof vscode.LanguageModelChatMessage) {
+                // For chat messages, ensure we have content
+                if (!text.content || (Array.isArray(text.content) && text.content.length === 0)) {
+                    console.debug('Cline <Language Model API>: Empty chat message content');
+                    return 0;
+                }
+                tokenCount = await this.client.countTokens(text, this.currentRequestCancellation.token);
+            } else {
+                console.warn('Cline <Language Model API>: Invalid input type for token counting');
+                return 0;
+            }
+            
+            // Validate the result
+            if (typeof tokenCount !== 'number') {
+                console.warn('Cline <Language Model API>: Non-numeric token count received:', tokenCount);
                 return 0;
             }
 
-            return result;
+            if (tokenCount < 0) {
+                console.warn('Cline <Language Model API>: Negative token count received:', tokenCount);
+                return 0;
+            }
+
+            return tokenCount;
         }
         catch (error) {
+            // Handle specific error types
+            if (error instanceof vscode.CancellationError) {
+                console.debug('Cline <Language Model API>: Token counting cancelled by user');
+                return 0;
+            }
+
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            console.warn('Token counting failed:', errorMessage);
+            console.warn('Cline <Language Model API>: Token counting failed:', errorMessage);
+            
+            // Log additional error details if available
+            if (error instanceof Error && error.stack) {
+                console.debug('Token counting error stack:', error.stack);
+            }
+
             return 0; // Fallback to prevent stream interruption
         }
     }
@@ -352,34 +410,82 @@ export class VsCodeLmHandler implements ApiHandler {
 
         try {
 
-            // Create the response stream
+            // Create the response stream with minimal required options
+            const requestOptions: vscode.LanguageModelChatRequestOptions = {
+                justification: `Cline would like to use '${client.name}' from '${client.vendor}', Click 'Allow' to proceed.`
+            };
+
+            // Note: Tool support is currently provided by the VSCode Language Model API directly
+            // Extensions can register tools using vscode.lm.registerTool()
+
             const response: vscode.LanguageModelChatResponse = await client.sendRequest(
                 vsCodeLmMessages,
-                { justification: `Cline would like to use '${client.name}' from '${client.vendor}', Click 'Allow' to proceed.` },
+                requestOptions,
                 this.currentRequestCancellation.token
             );
 
             // Consume the stream and handle both text and tool call chunks
             for await (const chunk of response.stream) {
                 if (chunk instanceof vscode.LanguageModelTextPart) {
+                    // Validate text part value
+                    if (typeof chunk.value !== 'string') {
+                        console.warn('Cline <Language Model API>: Invalid text part value received:', chunk.value);
+                        continue;
+                    }
+
                     accumulatedText += chunk.value;
                     yield {
                         type: "text",
                         text: chunk.value,
                     };
                 } else if (chunk instanceof vscode.LanguageModelToolCallPart) {
-                    // Convert tool calls to text format
-                    const toolCallText = JSON.stringify({
-                        type: "tool_call",
-                        name: chunk.name,
-                        arguments: chunk.input,
-                        callId: chunk.callId
-                    });
-                    accumulatedText += toolCallText;
-                    yield {
-                        type: "text",
-                        text: toolCallText,
-                    };
+                    try {
+                        // Validate tool call parameters
+                        if (!chunk.name || typeof chunk.name !== 'string') {
+                            console.warn('Cline <Language Model API>: Invalid tool name received:', chunk.name);
+                            continue;
+                        }
+
+                        if (!chunk.callId || typeof chunk.callId !== 'string') {
+                            console.warn('Cline <Language Model API>: Invalid tool callId received:', chunk.callId);
+                            continue;
+                        }
+
+                        // Ensure input is a valid object
+                        if (!chunk.input || typeof chunk.input !== 'object') {
+                            console.warn('Cline <Language Model API>: Invalid tool input received:', chunk.input);
+                            continue;
+                        }
+
+                        // Convert tool calls to text format with proper error handling
+                        const toolCall = {
+                            type: "tool_call",
+                            name: chunk.name,
+                            arguments: chunk.input,
+                            callId: chunk.callId
+                        };
+
+                        const toolCallText = JSON.stringify(toolCall);
+                        accumulatedText += toolCallText;
+                        
+                        // Log tool call for debugging
+                        console.debug('Cline <Language Model API>: Processing tool call:', {
+                            name: chunk.name,
+                            callId: chunk.callId,
+                            inputSize: JSON.stringify(chunk.input).length
+                        });
+
+                        yield {
+                            type: "text",
+                            text: toolCallText,
+                        };
+                    } catch (error) {
+                        console.error('Cline <Language Model API>: Failed to process tool call:', error);
+                        // Continue processing other chunks even if one fails
+                        continue;
+                    }
+                } else {
+                    console.warn('Cline <Language Model API>: Unknown chunk type received:', chunk);
                 }
             }
 
@@ -412,35 +518,63 @@ export class VsCodeLmHandler implements ApiHandler {
         }
     }
 
-    // TODO: I'd really like to change this method signature to async so that this provider (and possibly others like it) can ensure the correct model data is returned.
+    // Return model information based on the current client state
     getModel(): { id: string; info: ModelInfo; } {
-
         if (this.client) {
-
-            const modelId: string = (
-                this.client.id || [this.client.vendor, this.client.family].filter(Boolean).join(SELECTOR_SEPARATOR)
-            );
-
-            return {
-                id: modelId,
-                info: {
-                    maxTokens: -1,
-                    contextWindow: Math.max(0, this.client.maxInputTokens),
-                    supportsImages: false,
-                    supportsPromptCache: true,
-                    inputPrice: 0,
-                    outputPrice: 0,
-                },
+            // Validate client properties
+            const requiredProps = {
+                id: this.client.id,
+                vendor: this.client.vendor,
+                family: this.client.family,
+                version: this.client.version,
+                maxInputTokens: this.client.maxInputTokens
             };
+
+            // Log any missing properties for debugging
+            for (const [prop, value] of Object.entries(requiredProps)) {
+                if (!value && value !== 0) {
+                    console.warn(`Cline <Language Model API>: Client missing ${prop} property`);
+                }
+            }
+
+            // Construct model ID using available information
+            const modelParts = [
+                this.client.vendor,
+                this.client.family,
+                this.client.version
+            ].filter(Boolean);
+
+            const modelId = this.client.id || modelParts.join(SELECTOR_SEPARATOR);
+
+            // Build model info with conservative defaults for missing values
+            const modelInfo: ModelInfo = {
+                maxTokens: -1, // Unlimited tokens by default
+                contextWindow: typeof this.client.maxInputTokens === 'number' 
+                    ? Math.max(0, this.client.maxInputTokens)
+                    : openAiModelInfoSaneDefaults.contextWindow,
+                supportsImages: false, // VSCode Language Model API currently doesn't support image inputs
+                supportsPromptCache: true,
+                inputPrice: 0,
+                outputPrice: 0,
+                description: `VSCode Language Model: ${modelId}`
+            };
+
+            return { id: modelId, info: modelInfo };
         }
 
+        // Fallback when no client is available
+        const fallbackId = this.options.vsCodeLmModelSelector
+            ? stringifyVsCodeLmModelSelector(this.options.vsCodeLmModelSelector)
+            : "vscode-lm";
+
+        console.debug('Cline <Language Model API>: No client available, using fallback model info');
+
         return {
-            id: (
-                this.options.vsCodeLmModelSelector
-                    ? stringifyVsCodeLmModelSelector(this.options.vsCodeLmModelSelector)
-                    : "vscode-lm"
-            ),
-            info: openAiModelInfoSaneDefaults,
+            id: fallbackId,
+            info: {
+                ...openAiModelInfoSaneDefaults,
+                description: `VSCode Language Model (Fallback): ${fallbackId}`
+            }
         };
     }
 }
