@@ -203,15 +203,24 @@ export class VsCodeLmHandler implements ApiHandler {
      * const chatClient = await createClient(selector);
      */
     async createClient(selector: vscode.LanguageModelChatSelector): Promise<vscode.LanguageModelChat> {
+        try {
+            const models: vscode.LanguageModelChat[] = await vscode.lm.selectChatModels(selector);
 
-        const models: vscode.LanguageModelChat[] = await vscode.lm.selectChatModels(selector);
+            if (!models || models.length === 0) {
+                throw new Error(`No models found matching selector: ${JSON.stringify(selector)}`);
+            }
 
-        if (models.length === 0) {
+            // Validate the selected model has required properties
+            const selectedModel = models[0];
+            if (!selectedModel.id || !selectedModel.vendor || !selectedModel.family) {
+                throw new Error('Selected model is missing required properties (id, vendor, or family)');
+            }
 
-            throw new Error("Cline <Language Model API>: No models were found whilst using the specified selector.");
+            return selectedModel;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            throw new Error(`Cline <Language Model API>: Failed to select model: ${errorMessage}`);
         }
-
-        return models[0];
     }
 
     /**
@@ -245,19 +254,28 @@ export class VsCodeLmHandler implements ApiHandler {
     }
 
     private async countTokens(text: string | vscode.LanguageModelChatMessage): Promise<number> {
-
         if (!this.client || !this.currentRequestCancellation) {
-
             return 0;
         }
 
         try {
+            if (!text) {
+                return 0;
+            }
 
-            return await this.client.countTokens(text, this.currentRequestCancellation.token);
+            const result = await this.client.countTokens(text, this.currentRequestCancellation.token);
+            
+            // Validate the result is a positive number
+            if (typeof result !== 'number' || result < 0) {
+                console.warn('Invalid token count received:', result);
+                return 0;
+            }
+
+            return result;
         }
         catch (error) {
-
-            console.warn('Token counting failed:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.warn('Token counting failed:', errorMessage);
             return 0; // Fallback to prevent stream interruption
         }
     }
@@ -341,16 +359,26 @@ export class VsCodeLmHandler implements ApiHandler {
                 this.currentRequestCancellation.token
             );
 
-            // Consume the stream and yield text chunks
+            // Consume the stream and handle both text and tool call chunks
             for await (const chunk of response.stream) {
-
                 if (chunk instanceof vscode.LanguageModelTextPart) {
-
                     accumulatedText += chunk.value;
-
                     yield {
                         type: "text",
                         text: chunk.value,
+                    };
+                } else if (chunk instanceof vscode.LanguageModelToolCallPart) {
+                    // Convert tool calls to text format
+                    const toolCallText = JSON.stringify({
+                        type: "tool_call",
+                        name: chunk.name,
+                        arguments: chunk.input,
+                        callId: chunk.callId
+                    });
+                    accumulatedText += toolCallText;
+                    yield {
+                        type: "text",
+                        text: toolCallText,
                     };
                 }
             }
