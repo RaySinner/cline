@@ -387,16 +387,62 @@ export class VsCodeLmHandler implements ApiHandler {
         return this.client;
     }
 
+    private cleanTerminalOutput(text: string): string {
+        if (!text) {
+            return '';
+        }
+        return text
+            .replace(/\x1b\]633;.[^\x07]*\x07/g, '') // Remove OSC escape sequences
+            .replace(/\\x5c/g, '\\')                  // Fix escaped backslashes
+            .replace(/\\\\/g, '\\')                   // Normalize double backslashes
+            .replace(/\\/g, '/')                      // Convert remaining backslashes to forward slashes
+            .replace(/[\x00-\x08\x0B-\x1F\x7F-\x9F\uFFFD]/g, '') // Remove control chars
+            .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')   // Remove ANSI escape sequences
+            .replace(/\s+/g, ' ')                     // Normalize whitespace
+            .trim();
+    }
+
+    private cleanMessageContent(content: any): any {
+        if (!content) {
+            return content;
+        }
+        
+        if (typeof content === 'string') {
+            return this.cleanTerminalOutput(content);
+        }
+        
+        if (Array.isArray(content)) {
+            return content.map(item => this.cleanMessageContent(item));
+        }
+        
+        if (typeof content === 'object') {
+            const cleaned: any = {};
+            for (const [key, value] of Object.entries(content)) {
+                cleaned[key] = this.cleanMessageContent(value);
+            }
+            return cleaned;
+        }
+        
+        return content;
+    }
+
     async *createMessage(systemPrompt: string, messages: Anthropic.Messages.MessageParam[]): ApiStream {
 
         // Ensure clean state before starting a new request
         this.ensureCleanState();
         const client: vscode.LanguageModelChat = await this.getClient();
 
+        // Clean system prompt and messages
+        const cleanedSystemPrompt = this.cleanTerminalOutput(systemPrompt);
+        const cleanedMessages = messages.map(msg => ({
+            ...msg,
+            content: this.cleanMessageContent(msg.content)
+        }));
+
         // Convert Anthropic messages to VS Code LM messages
         const vsCodeLmMessages: vscode.LanguageModelChatMessage[] = [
-            vscode.LanguageModelChatMessage.Assistant(systemPrompt),
-            ...convertToVsCodeLmMessages(messages),
+            vscode.LanguageModelChatMessage.Assistant(cleanedSystemPrompt),
+            ...convertToVsCodeLmMessages(cleanedMessages),
         ];
 
         // Initialize cancellation token for the request
