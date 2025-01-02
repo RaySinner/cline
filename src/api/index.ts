@@ -12,6 +12,7 @@ import { OpenAiNativeHandler } from "./providers/openai-native"
 import { VsCodeLmHandler } from "./providers/vscode-lm";
 import { ApiStream } from "./transform/stream"
 import { DelayDecorator } from "./providers/delay-decorator"
+import { DeepSeekHandler } from "./providers/deepseek"
 
 export interface ApiHandler {
 	createMessage(systemPrompt: string, messages: Anthropic.Messages.MessageParam[]): ApiStream
@@ -51,6 +52,9 @@ export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
 			break
         case "vscode-lm":
             handler =  new VsCodeLmHandler(options)
+			break
+		case "deepseek":
+			handler =  new DeepSeekHandler(options)
 			break
 		default:
 			handler = new AnthropicHandler(options)

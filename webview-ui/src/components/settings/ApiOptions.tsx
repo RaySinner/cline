@@ -17,6 +17,8 @@ import {
     azureOpenAiDefaultApiVersion,
     bedrockDefaultModelId,
     bedrockModels,
+    deepSeekDefaultModelId,
+    deepSeekModels,
     geminiDefaultModelId,
     geminiModels,
     openAiModelInfoSaneDefaults,
@@ -132,30 +134,31 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage }: 
             </VSCodeDropdown>
         );
     };
-
-    return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <div className="dropdown-container">
-                <label htmlFor="api-provider">
-                    <span style={{ fontWeight: 500 }}>API Provider</span>
-                </label>
-                <VSCodeDropdown
-                    id="api-provider"
-                    value={selectedProvider}
-                    onChange={handleInputChange("apiProvider")}
-                    style={{ minWidth: 130, position: "relative", zIndex: OPENROUTER_MODEL_PICKER_Z_INDEX + 1 }}>
-                    <VSCodeOption value="openrouter">OpenRouter</VSCodeOption>
-                    <VSCodeOption value="anthropic">Anthropic</VSCodeOption>
-                    <VSCodeOption value="gemini">Google Gemini</VSCodeOption>
-                    <VSCodeOption value="vertex">GCP Vertex AI</VSCodeOption>
-                    <VSCodeOption value="bedrock">AWS Bedrock</VSCodeOption>
-                    <VSCodeOption value="openai-native">OpenAI</VSCodeOption>
-                    <VSCodeOption value="openai">OpenAI Compatible</VSCodeOption>
-                    <VSCodeOption value="lmstudio">LM Studio</VSCodeOption>
-                    <VSCodeOption value="ollama">Ollama</VSCodeOption>
-                    <VSCodeOption value="vscode-lm">VSCode: Language Model API</VSCodeOption>
-                </VSCodeDropdown>
-            </div>
+return (
+  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+    <div className="dropdown-container">
+      <label htmlFor="api-provider">
+        <span style={{ fontWeight: 500 }}>API Provider</span>
+      </label>
+      <VSCodeDropdown
+        id="api-provider"
+        value={selectedProvider}
+        onChange={handleInputChange("apiProvider")}
+        style={{ minWidth: 130, position: "relative", zIndex: OPENROUTER_MODEL_PICKER_Z_INDEX + 1 }}
+      >
+        <VSCodeOption value="openrouter">OpenRouter</VSCodeOption>
+        <VSCodeOption value="anthropic">Anthropic</VSCodeOption>
+        <VSCodeOption value="gemini">Google Gemini</VSCodeOption>
+        <VSCodeOption value="deepseek">DeepSeek</VSCodeOption>
+        <VSCodeOption value="vertex">GCP Vertex AI</VSCodeOption>
+        <VSCodeOption value="bedrock">AWS Bedrock</VSCodeOption>
+        <VSCodeOption value="openai-native">OpenAI</VSCodeOption>
+        <VSCodeOption value="openai">OpenAI Compatible</VSCodeOption>
+        <VSCodeOption value="lmstudio">LM Studio</VSCodeOption>
+        <VSCodeOption value="ollama">Ollama</VSCodeOption>
+        <VSCodeOption value="vscode-lm">VSCode: LM API</VSCodeOption>
+      </VSCodeDropdown>
+    </div>
 
             {selectedProvider === "anthropic" && (
                 <div>
@@ -235,7 +238,36 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage }: 
                     </p>
                 </div>
             )}
-
+            {selectedProvider === "deepseek" && (
+                <div>
+                    <VSCodeTextField
+                        value={apiConfiguration?.deepSeekApiKey || ""}
+                        style={{ width: "100%" }}
+                        type="password"
+                        onInput={handleInputChange("deepSeekApiKey")}
+                        placeholder="Enter API Key..."
+                    >
+                        <span style={{ fontWeight: 500 }}>DeepSeek API Key</span>
+                    </VSCodeTextField>
+                    <p
+                        style={{
+                            fontSize: "12px",
+                            marginTop: 3,
+                            color: "var(--vscode-descriptionForeground)",
+                        }}
+                    >
+                        This key is stored locally and only used to make API requests from this extension.
+                        {!apiConfiguration?.deepSeekApiKey && (
+                            <VSCodeLink
+                                href="https://www.deepseek.com/"
+                                style={{ display: "inline", fontSize: "inherit" }}
+                            >
+                                You can get a DeepSeek API key by signing up here.
+                            </VSCodeLink>
+                        )}
+                    </p>
+                </div>
+            )}
             {selectedProvider === "openrouter" && (
                 <div>
                     <VSCodeTextField
@@ -243,14 +275,16 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage }: 
                         style={{ width: "100%" }}
                         type="password"
                         onInput={handleInputChange("openRouterApiKey")}
-                        placeholder="Enter API Key...">
+                        placeholder="Enter API Key..."
+                    >
                         <span style={{ fontWeight: 500 }}>OpenRouter API Key</span>
                     </VSCodeTextField>
                     {!apiConfiguration?.openRouterApiKey && (
                         <VSCodeButtonLink
                             href={getOpenRouterAuthUrl(uriScheme)}
                             style={{ margin: "5px 0 0 0" }}
-                            appearance="secondary">
+                            appearance="secondary"
+                        >
                             Get OpenRouter API Key
                         </VSCodeButtonLink>
                     )}
@@ -259,14 +293,15 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage }: 
                             fontSize: "12px",
                             marginTop: "5px",
                             color: "var(--vscode-descriptionForeground)",
-                        }}>
+                        }}
+                    >
                         This key is stored locally and only used to make API requests from this extension.{" "}
                         {/* {!apiConfiguration?.openRouterApiKey && (
-							<span style={{ color: "var(--vscode-charts-green)" }}>
-								(<span style={{ fontWeight: 500 }}>Note:</span> OpenRouter is recommended for high rate
-								limits, prompt caching, and wider selection of models.)
-							</span>
-						)} */}
+                            <span style={{ color: "var(--vscode-charts-green)" }}>
+                                (<span style={{ fontWeight: 500 }}>Note:</span> OpenRouter is recommended for high rate
+                                limits, prompt caching, and wider selection of models.)
+                            </span>
+                        )} */}
                     </p>
                 </div>
             )}
@@ -646,9 +681,9 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage }: 
                             <VSCodeDropdown
                                 id="vscode-lm-model"
                                 value={
-                                    apiConfiguration?.vsCodeLmModelSelector ?
-                                        stringifyVsCodeLmModelSelector(apiConfiguration.vsCodeLmModelSelector) :
-                                        ""
+                                    apiConfiguration?.vsCodeLmModelSelector
+                                        ? stringifyVsCodeLmModelSelector(apiConfiguration.vsCodeLmModelSelector)
+                                        : ""
                                 }
                                 onChange={(e) => {
                                     const value: string | undefined = (e.target as HTMLInputElement)?.value;
@@ -661,25 +696,23 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage }: 
                                 style={{ width: "100%" }}
                             >
                                 <VSCodeOption value="">Select a model...</VSCodeOption>
-                                {
-                                    vsCodeLmSelectors.map((selector) => {
-                                        const stringifiedSelector = stringifyVsCodeLmModelSelector(selector);
-                                        return (
-                                            <VSCodeOption
-                                                key={stringifiedSelector}
-                                                value={stringifiedSelector}>
-                                                {stringifiedSelector}
-                                            </VSCodeOption>
-                                        );
-                                    })
-                                }
+                                {vsCodeLmSelectors.map((selector) => {
+                                    const stringifiedSelector = stringifyVsCodeLmModelSelector(selector);
+                                    return (
+                                        <VSCodeOption key={stringifiedSelector} value={stringifiedSelector}>
+                                            {stringifiedSelector}
+                                        </VSCodeOption>
+                                    );
+                                })}
                             </VSCodeDropdown>
                         ) : (
-                            <p style={{
-                                fontSize: "12px",
-                                marginTop: "5px",
-                                color: "var(--vscode-descriptionForeground)"
-                            }}>
+                            <p
+                                style={{
+                                    fontSize: "12px",
+                                    marginTop: "5px",
+                                    color: "var(--vscode-descriptionForeground)",
+                                }}
+                            >
                                 No language models available.<br />
                                 Please install a VSCode extension that provides a language model, such as GitHub Copilot.
                             </p>
@@ -687,6 +720,26 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage }: 
                     </div>
                 </div>
             )}
+            {selectedProvider !== "openrouter" &&
+                selectedProvider !== "openai" &&
+                selectedProvider !== "ollama" &&
+                selectedProvider !== "lmstudio" &&
+                selectedProvider !== "vscode-lm" && // Добавлено исключение для vscode-lm
+                showModelOptions && (
+                    <>
+                        <div className="dropdown-container">
+                            <label htmlFor="model-id">
+                                <span style={{ fontWeight: 500 }}>Model</span>
+                            </label>
+                            {selectedProvider === "anthropic" && createDropdown(anthropicModels)}
+                            {selectedProvider === "bedrock" && createDropdown(bedrockModels)}
+                            {selectedProvider === "vertex" && createDropdown(vertexModels)}
+                            {selectedProvider === "gemini" && createDropdown(geminiModels)}
+                            {selectedProvider === "openai-native" && createDropdown(openAiNativeModels)}
+                            {selectedProvider === "deepseek" && createDropdown(deepSeekModels)}
+                        </div>
+                    </>
+                )}
 
             {selectedProvider !== "openrouter" &&
                 selectedProvider !== "openai" &&
@@ -911,6 +964,7 @@ export function normalizeApiConfiguration(apiConfiguration?: ApiConfiguration) {
         }
         return { selectedProvider: provider, selectedModelId, selectedModelInfo };
     };
+    
     switch (provider) {
         case "anthropic":
             return getProviderData(anthropicModels, anthropicDefaultModelId);
@@ -922,6 +976,8 @@ export function normalizeApiConfiguration(apiConfiguration?: ApiConfiguration) {
             return getProviderData(geminiModels, geminiDefaultModelId);
         case "openai-native":
             return getProviderData(openAiNativeModels, openAiNativeDefaultModelId);
+        case "deepseek":
+            return getProviderData(deepSeekModels, deepSeekDefaultModelId);
         case "openrouter":
             return {
                 selectedProvider: provider,
@@ -949,11 +1005,10 @@ export function normalizeApiConfiguration(apiConfiguration?: ApiConfiguration) {
         case "vscode-lm":
             return {
                 selectedProvider: provider,
-                selectedModelId: (
+                selectedModelId:
                     apiConfiguration?.vsCodeLmModelSelector != null
                         ? stringifyVsCodeLmModelSelector(apiConfiguration?.vsCodeLmModelSelector)
-                        : ""
-                ),
+                        : "",
                 selectedModelInfo: openAiModelInfoSaneDefaults, //TODO: Include actual model info if possible??
             };
         default:
