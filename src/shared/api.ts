@@ -62,11 +62,12 @@ export interface ApiConfiguration {
 	lmStudioBaseUrl?: string
 	anthropicBaseUrl?: string
 	geminiApiKey?: string
-	openAiNativeApiKey?: string
-	azureApiVersion?: string
-	openRouterModelId?: string
-	openRouterModelInfo?: ModelInfo
-	requestDelay?: number,
+openAiNativeApiKey?: string
+deepSeekApiKey?: string
+azureApiVersion?: string
+openRouterModelId?: string
+openRouterModelInfo?: ModelInfo
+requestDelay?: number,
 	vsCodeLmModelSelector?: vscode.LanguageModelChatSelector
 }
 

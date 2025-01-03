@@ -387,20 +387,44 @@ export class VsCodeLmHandler implements ApiHandler {
         return this.client;
     }
 
-    private cleanTerminalOutput(text: string): string {
-        if (!text) {
-            return '';
-        }
-        return text
-            .replace(/\x1b\]633;.[^\x07]*\x07/g, '') // Remove OSC escape sequences
-            .replace(/\\x5c/g, '\\')                  // Fix escaped backslashes
-            .replace(/\\\\/g, '\\')                   // Normalize double backslashes
-            .replace(/\\/g, '/')                      // Convert remaining backslashes to forward slashes
-            .replace(/[\x00-\x08\x0B-\x1F\x7F-\x9F\uFFFD]/g, '') // Remove control chars
-            .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')   // Remove ANSI escape sequences
-            .replace(/\s+/g, ' ')                     // Normalize whitespace
-            .trim();
-    }
+  private cleanTerminalOutput(text: string): string {
+      if (!text) {
+          return '';
+      }
+
+      return text
+          // Нормализуем переносы строк
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n')
+          
+          // Удаляем ANSI escape sequences
+          .replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '') // Полный набор ANSI sequences
+          .replace(/\x9B[0-?]*[ -/]*[@-~]/g, '')  // CSI sequences
+          
+          // Удаляем последовательности установки заголовка терминала и прочие OSC sequences
+          .replace(/\x1B\][0-9;]*(?:\x07|\x1B\\)/g, '')
+          
+          // Удаляем управляющие символы
+          .replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '')
+          
+          // Удаляем escape-последовательности VS Code
+          .replace(/\x1B[PD].*?\x1B\\/g, '')      // DCS sequences
+          .replace(/\x1B_.*?\x1B\\/g, '')         // APC sequences
+          .replace(/\x1B\^.*?\x1B\\/g, '')        // PM sequences
+          .replace(/\x1B\[[\d;]*[HfABCDEFGJKST]/g, '') // Cursor movement and clear screen
+          
+          // Удаляем пути Windows и служебную информацию
+          .replace(/^(?:PS )?[A-Z]:\\[^\n]*$/mg, '')
+          .replace(/^;?Cwd=.*$/mg, '')
+          
+          // Очищаем экранированные последовательности
+          .replace(/\\x[0-9a-fA-F]{2}/g, '')
+          .replace(/\\u[0-9a-fA-F]{4}/g, '')
+          
+          // Финальная очистка
+          .replace(/\n{3,}/g, '\n\n')  // Убираем множественные пустые строки
+          .trim();
+  }
 
     private cleanMessageContent(content: any): any {
         if (!content) {
@@ -559,8 +583,26 @@ export class VsCodeLmHandler implements ApiHandler {
                 throw new Error("Cline <Language Model API>: Request cancelled by user");
             }
 
-            const errorMessage: string = error instanceof Error ? error.message : "Unknown error";
-            throw new Error(`Cline <Language Model API>: Response stream error: ${errorMessage}`);
+            if (error instanceof Error) {
+                console.error('Cline <Language Model API>: Stream error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
+                
+                // Return original error if it's already an Error instance
+                throw error;
+            } else if (typeof error === 'object' && error !== null) {
+                // Handle error-like objects
+                const errorDetails = JSON.stringify(error, null, 2);
+                console.error('Cline <Language Model API>: Stream error object:', errorDetails);
+                throw new Error(`Cline <Language Model API>: Response stream error: ${errorDetails}`);
+            } else {
+                // Fallback for unknown error types
+                const errorMessage = String(error);
+                console.error('Cline <Language Model API>: Unknown stream error:', errorMessage);
+                throw new Error(`Cline <Language Model API>: Response stream error: ${errorMessage}`);
+            }
         }
     }
 
